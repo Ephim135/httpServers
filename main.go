@@ -1,28 +1,47 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
+
+	"github.com/Ephim135/httpServers.git/internal/database"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	dbQueries      database.Queries
 }
 
 func main() {
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Errorf("cant open database %v", err)
+		return
+	}
+
+	dbQueries := database.New(db)
+
 	const port = "8080"
 
 	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
+		dbQueries:      *dbQueries,
 	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
-	mux.HandleFunc("GET /healthz", handlerReadiness)
-	mux.HandleFunc("GET /metrics", cfg.fileServerHits)
-	mux.HandleFunc("POST /reset", cfg.reset)
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+	mux.HandleFunc("GET /admin/metrics", cfg.fileServerHits)
+	mux.HandleFunc("POST /admin/reset", cfg.reset)
 
 	server := &http.Server{
 		Addr:    ":" + port,
@@ -31,13 +50,6 @@ func main() {
 
 	log.Fatal(server.ListenAndServe())
 
-}
-
-func (cfg *apiConfig) fileServerHits(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	hits := fmt.Sprintf("Hits: %v", cfg.fileserverHits.Load())
-	w.Write([]byte(hits))
 }
 
 func handlerReadiness(w http.ResponseWriter, r *http.Request) {
