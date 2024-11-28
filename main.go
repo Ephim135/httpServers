@@ -33,16 +33,16 @@ func main() {
 
 	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
-		dbQueries:      *dbQueries,
+		db:             *dbQueries,
 	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
 	mux.HandleFunc("GET /admin/metrics", cfg.fileServerHits)
 	mux.HandleFunc("POST /admin/reset", cfg.reset)
 	mux.HandleFunc("POST /api/users", cfg.createUser)
+	mux.HandleFunc("POST /api/chirps", cfg.createChirp)
 
 	server := &http.Server{
 		Addr:    ":" + port,

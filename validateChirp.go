@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
+func ChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}

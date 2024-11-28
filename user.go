@@ -34,7 +34,7 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("cant create user: %v", err)
 	}
 
-	respondWithJSON(w, http.StatusOK, User{
+	respondWithJSON(w, http.StatusCreated, User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
