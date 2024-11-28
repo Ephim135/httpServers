@@ -15,7 +15,7 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbQueries      database.Queries
+	db             database.Queries
 }
 
 func main() {
@@ -42,6 +42,7 @@ func main() {
 	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
 	mux.HandleFunc("GET /admin/metrics", cfg.fileServerHits)
 	mux.HandleFunc("POST /admin/reset", cfg.reset)
+	mux.HandleFunc("POST /api/users", cfg.createUser)
 
 	server := &http.Server{
 		Addr:    ":" + port,
