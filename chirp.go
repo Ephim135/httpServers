@@ -58,3 +58,21 @@ func MapDatabaseChirp(dbChirp database.Chirp) Chirp {
 		UserID:    dbChirp.UserID,
 	}
 }
+
+func MapDatabaseChirps(dbChirps []database.Chirp) []Chirp {
+	mappedChirps := make([]Chirp, len(dbChirps))
+	for i, dbChirp := range dbChirps {
+		mappedChirps[i] = MapDatabaseChirp(dbChirp)
+	}
+	return mappedChirps
+}
+
+func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.db.GetChirps(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Get Chirps Failed", nil)
+		return
+	}
+	chirpsMapped := MapDatabaseChirps(chirps)
+	respondWithJSON(w, http.StatusOK, chirpsMapped)
+}
