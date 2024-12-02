@@ -76,3 +76,22 @@ func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 	chirpsMapped := MapDatabaseChirps(chirps)
 	respondWithJSON(w, http.StatusOK, chirpsMapped)
 }
+
+func (cfg *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("chirpID")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "failed Parse id string to uuid", nil)
+		return
+	}
+
+	databaseChirp, err := cfg.db.GetChirpById(r.Context(), id)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "failed Get Chirp by ID", nil)
+		return
+	}
+	chirp := MapDatabaseChirp(databaseChirp)
+
+	respondWithJSON(w, http.StatusOK, chirp)
+
+}

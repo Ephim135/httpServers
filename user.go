@@ -6,17 +6,22 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Ephim135/httpServers.git/internal/auth"
+	"github.com/Ephim135/httpServers.git/internal/database"
+
 	"github.com/google/uuid"
 )
 
 type userRequest struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID             uuid.UUID `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Email          string    `json:"email"`
+	HashedPassword string    `json:"-"`
 }
 
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
@@ -29,15 +34,31 @@ func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := cfg.db.CreateUser(r.Context(), params.Email)
+	hashed_password, err := auth.HashPassword(params.Password)
 	if err != nil {
-		log.Fatalf("cant create user: %v", err)
+		log.Fatalf("Failed to Hash Password %v", err)
 	}
 
-	respondWithJSON(w, http.StatusCreated, User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+	dbUser, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hashed_password,
 	})
+	if err != nil {
+		log.Fatalf("cant create user: %v", err)
+		return
+	}
+
+	user := MapDatabaseUser(dbUser)
+
+	respondWithJSON(w, http.StatusCreated, user)
+}
+
+func MapDatabaseUser(dbUser database.User) User {
+	return User{
+		ID:             dbUser.ID,
+		CreatedAt:      dbUser.CreatedAt,
+		UpdatedAt:      dbUser.UpdatedAt,
+		Email:          dbUser.Email,
+		HashedPassword: dbUser.HashedPassword,
+	}
 }
