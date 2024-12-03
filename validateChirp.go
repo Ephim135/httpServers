@@ -8,7 +8,7 @@ import (
 func ChirpsValidate(body string) (string, error) {
 	const maxChirpLength = 140
 	if len(body) > maxChirpLength {
-		return "", fmt.Errorf("Chirps is to long Max Length: %v", maxChirpLength)
+		return "", fmt.Errorf("chirps is to long Max Length: %v", maxChirpLength)
 	}
 
 	badWords := map[string]struct{}{

@@ -5,19 +5,30 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Ephim135/httpServers.git/internal/auth"
 	"github.com/Ephim135/httpServers.git/internal/database"
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
+	}
+
+	tokenString, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "JWT invalid cant get Token:", err)
+		return
+	}
+	userID, err := auth.ValidateJWT(tokenString, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "JWT invalid", err)
+		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
@@ -30,13 +41,14 @@ func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbChirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+		UserID: userID,
 		Body:   cleaned,
-		UserID: params.UserID,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Create Chirp Failed", nil)
 		return
 	}
+
 	chirp := MapDatabaseChirp(dbChirp)
 	respondWithJSON(w, http.StatusCreated, chirp)
 }

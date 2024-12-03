@@ -9,6 +9,4 @@ require (
 	golang.org/x/crypto v0.29.0
 )
 
-require github.com/dgrijalva/jwt-go v3.2.0+incompatible
-
-require github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
+require github.com/golang-jwt/jwt/v5 v5.2.1

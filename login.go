@@ -4,13 +4,21 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Ephim135/httpServers.git/internal/auth"
 )
 
 type loginRequest struct {
-	Password string
-	Email    string
+	Password         string `json:"password"`
+	Email            string `json:"email"`
+	ExpiresInSeconds int    `json:"expires_in_seconds"`
+}
+
+type response struct {
+	User
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
@@ -37,5 +45,28 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, user)
+	expirationTime := time.Hour
+	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
+		expirationTime = time.Duration(params.ExpiresInSeconds) * time.Second
+	}
+
+	accessToken, err := auth.MakeJWT(
+		user.ID,
+		cfg.jwtSecret,
+		expirationTime,
+	)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create access JWT", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, response{
+		User: User{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
+		},
+		Token: accessToken,
+	})
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,24 +15,38 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             database.Queries
+	patform        string
+	jwtSecret      string
 }
 
 func main() {
+	const port = "8080"
+
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
+	}
+	jwtSecret := os.Getenv("SECRET_KEY")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is not set")
+	}
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		fmt.Errorf("cant open database %v", err)
+		log.Fatalf("cant open database %v", err)
 		return
 	}
 
 	dbQueries := database.New(db)
 
-	const port = "8080"
-
 	cfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             *dbQueries,
+		jwtSecret:      jwtSecret,
 	}
 
 	mux := http.NewServeMux()
