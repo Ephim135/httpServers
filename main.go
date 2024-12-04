@@ -15,7 +15,6 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             database.Queries
-	patform        string
 	jwtSecret      string
 }
 
@@ -59,6 +58,8 @@ func main() {
 	mux.HandleFunc("GET /api/chirps", cfg.getChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.getChirpById)
 	mux.HandleFunc("POST /api/login", cfg.login)
+	mux.HandleFunc("POST /api/refresh", cfg.refresh)
+	mux.HandleFunc("POST /api/revoke", cfg.revoke)
 
 	server := &http.Server{
 		Addr:    ":" + port,

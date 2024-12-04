@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/Ephim135/httpServers.git/internal/auth"
+	"github.com/Ephim135/httpServers.git/internal/database"
 )
 
 type loginRequest struct {
-	Password         string `json:"password"`
-	Email            string `json:"email"`
-	ExpiresInSeconds int    `json:"expires_in_seconds"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 type response struct {
@@ -38,25 +38,34 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := MapDatabaseUser(dbUser)
-
 	err = auth.CheckPasswordHash(params.Password, user.HashedPassword)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Wrong Password", err)
 		return
 	}
 
-	expirationTime := time.Hour
-	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
-		expirationTime = time.Duration(params.ExpiresInSeconds) * time.Second
-	}
-
 	accessToken, err := auth.MakeJWT(
 		user.ID,
 		cfg.jwtSecret,
-		expirationTime,
+		time.Hour,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create access JWT", err)
+		return
+	}
+
+	refresh_token, err := auth.MakeFreshToken()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create refresh tokane", err)
+		return
+	}
+	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		Token:     refresh_token,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().UTC().Add(time.Hour * 24 * 60),
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't save refresh token", err)
 		return
 	}
 
@@ -67,6 +76,7 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
 		},
-		Token: accessToken,
+		Token:        accessToken,
+		RefreshToken: refresh_token,
 	})
 }
