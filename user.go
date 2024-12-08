@@ -62,3 +62,48 @@ func MapDatabaseUser(dbUser database.User) User {
 		HashedPassword: dbUser.HashedPassword,
 	}
 }
+
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	// Parse the request
+	var req struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid request", err)
+		return
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find token", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate token", err)
+		return
+	}
+
+	hashed_password, err := auth.HashPassword(req.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't hash password", err)
+		return
+	}
+
+	// Update the user
+	user, err := cfg.db.UpdateUser(r.Context(), database.UpdateUserParams{
+		ID:             userID,
+		HashedPassword: hashed_password,
+		Email:          req.Email,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't update user", err)
+		return
+	}
+
+	// Respond with the updated user
+	respondWithJSON(w, http.StatusOK, MapDatabaseUser(user))
+}

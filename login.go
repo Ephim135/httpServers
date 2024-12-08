@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -10,37 +9,35 @@ import (
 	"github.com/Ephim135/httpServers.git/internal/database"
 )
 
-type loginRequest struct {
-	Password string `json:"password"`
-	Email    string `json:"email"`
-}
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
 
-type response struct {
-	User
-	Token        string `json:"token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
+	type response struct {
+		User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
+	}
 
 	decoder := json.NewDecoder(r.Body)
-	params := loginRequest{}
+	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
 
-	dbUser, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
+	user, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
-		log.Fatalf("cant get User by Email: %v", err)
-		return
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password", err)
+
 	}
 
-	user := MapDatabaseUser(dbUser)
 	err = auth.CheckPasswordHash(params.Password, user.HashedPassword)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Wrong Password", err)
+		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password", err)
 		return
 	}
 
@@ -54,14 +51,15 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refresh_token, err := auth.MakeFreshToken()
+	refreshToken, err := auth.MakeFreshToken()
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create refresh tokane", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create refresh token", err)
 		return
 	}
+
 	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
-		Token:     refresh_token,
 		UserID:    user.ID,
+		Token:     refreshToken,
 		ExpiresAt: time.Now().UTC().Add(time.Hour * 24 * 60),
 	})
 	if err != nil {
@@ -77,6 +75,6 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 			Email:     user.Email,
 		},
 		Token:        accessToken,
-		RefreshToken: refresh_token,
+		RefreshToken: refreshToken,
 	})
 }

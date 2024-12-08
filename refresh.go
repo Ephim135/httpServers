@@ -7,30 +7,34 @@ import (
 	"github.com/Ephim135/httpServers.git/internal/auth"
 )
 
-type tokenResponse struct {
-	Token string `json:"token"`
-}
-
-func (cfg *apiConfig) refresh(w http.ResponseWriter, r *http.Request) {
-	refresh_token, err := auth.GetBearerToken(r.Header)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "cant get token", err)
-		return
+func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
+	type response struct {
+		Token string `json:"token"`
 	}
-	user, err := cfg.db.GetUserFromRefreshToken(r.Context(), refresh_token)
+
+	refreshToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "cant get user for token from database", err)
+		respondWithError(w, http.StatusBadRequest, "Couldn't find token", err)
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
+	user, err := cfg.db.GetUserFromRefreshToken(r.Context(), refreshToken)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "cant make new Token", err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't get user for refresh token", err)
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, tokenResponse{
-		Token: token,
-	},
+	accessToken, err := auth.MakeJWT(
+		user.ID,
+		cfg.jwtSecret,
+		time.Hour,
 	)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate token", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, response{
+		Token: accessToken,
+	})
 }
