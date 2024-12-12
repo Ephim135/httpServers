@@ -62,6 +62,7 @@ func main() {
 	mux.HandleFunc("POST /api/revoke", cfg.revoke)
 	mux.HandleFunc("PUT /api/users", cfg.handlerUpdateUser)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.deleteChirp)
+	mux.HandleFunc("POST /api/polka/webhooks", cfg.handlerWebhook)
 
 	server := &http.Server{
 		Addr:    ":" + port,
