@@ -1,6 +1,7 @@
 -- +goose Up
-Alter table users
-Add column is_chirpy_red boolean not null default false;
+ALTER TABLE users
+ADD COLUMN is_chirpy_red BOOLEAN NOT NULL 
+DEFAULT false;
 
 -- +goose Down
-Alter table users drop column is_chirpy_red;
+ALTER TABLE users DROP COLUMN is_chirpy_red;

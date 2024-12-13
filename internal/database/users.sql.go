@@ -94,7 +94,9 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 }
 
 const updateUserRed = `-- name: UpdateUserRed :one
-UPDATE users SET is_chirpy_red = true WHERE id = $1 RETURNING id, created_at, updated_at, email, hashed_password, is_chirpy_red
+UPDATE users SET is_chirpy_red = TRUE, updated_at = NOW()
+WHERE id = $1
+RETURNING id, created_at, updated_at, email, hashed_password, is_chirpy_red
 `
 
 func (q *Queries) UpdateUserRed(ctx context.Context, id uuid.UUID) (User, error) {

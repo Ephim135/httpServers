@@ -22,6 +22,7 @@ type User struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 	Email          string    `json:"email"`
 	HashedPassword string    `json:"-"`
+	IsChirpyRed    bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) createUser(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +61,7 @@ func MapDatabaseUser(dbUser database.User) User {
 		UpdatedAt:      dbUser.UpdatedAt,
 		Email:          dbUser.Email,
 		HashedPassword: dbUser.HashedPassword,
+		IsChirpyRed:    dbUser.IsChirpyRed,
 	}
 }
 

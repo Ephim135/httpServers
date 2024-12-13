@@ -1,38 +1,44 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerWebhook(w http.ResponseWriter, r *http.Request) {
-	var req struct {
+	type parameters struct {
 		Event string `json:"event"`
 		Data  struct {
-			UserID string `json:"user_id"`
-		} `json:"data"`
+			UserID uuid.UUID `json:"user_id"`
+		}
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusUnauthorized, "invalid request", err)
-		return
-	}
-
-	if req.Event != "user.created" {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	userID, err := uuid.Parse(req.Data.UserID)
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "invalid user id", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
 	}
 
-	if req.Event == "user.created" {
-		cfg.db.UpdateUserRed(r.Context(), userID)
+	if params.Event != "user.created" {
 		w.WriteHeader(http.StatusNoContent)
+		return
 	}
+
+	_, err = cfg.db.UpdateUserRed(r.Context(), params.Data.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "Couldn't find user", err)
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Couldn't update user", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
