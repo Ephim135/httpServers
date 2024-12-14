@@ -32,6 +32,7 @@ func (cfg *apiConfig) handlerWebhook(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusUnauthorized, "Couldn't get API key", err)
 		return
 	}
+
 	if cfg.apiKey != key {
 		respondWithError(w, http.StatusUnauthorized, "Invalid API key", err)
 		return
