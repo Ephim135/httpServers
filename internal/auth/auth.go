@@ -101,3 +101,18 @@ func MakeFreshToken() (string, error) {
 	}
 	return hex.EncodeToString(data), nil
 }
+
+func GetAPIKey(headers http.Header) (string, error) {
+	apiKey := headers.Get("Authorization")
+	// Authorization: ApiKey THE_KEY_HERE
+
+	if apiKey == "" {
+		return "", errors.New("X-API-Key header is missing")
+	}
+
+	splitAuth := strings.Split(apiKey, " ")
+	if len(splitAuth) < 2 || splitAuth[0] != "ApiKey" {
+		return "", errors.New("wrong form Authorization API-Key-header")
+	}
+	return splitAuth[1], nil
+}

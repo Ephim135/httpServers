@@ -16,12 +16,17 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             database.Queries
 	jwtSecret      string
+	apiKey         string
 }
 
 func main() {
 	const port = "8080"
 
 	godotenv.Load()
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("POLKA_KEY must be set")
+	}
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL must be set")
@@ -46,6 +51,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             *dbQueries,
 		jwtSecret:      jwtSecret,
+		apiKey:         polkaKey,
 	}
 
 	mux := http.NewServeMux()
@@ -56,7 +62,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", cfg.reset)
 	mux.HandleFunc("POST /api/users", cfg.createUser)
 	mux.HandleFunc("POST /api/chirps", cfg.createChirp)
-	mux.HandleFunc("GET /api/chirps", cfg.getChirps)
+	mux.HandleFunc("GET /api/chirps/", cfg.getChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.getChirpById)
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
 	mux.HandleFunc("POST /api/refresh", cfg.handlerRefresh)
