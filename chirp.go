@@ -72,21 +72,71 @@ func MapDatabaseChirp(dbChirp database.Chirp) Chirp {
 }
 
 func MapDatabaseChirps(dbChirps []database.Chirp) []Chirp {
-	mappedChirps := make([]Chirp, len(dbChirps))
-	for i, dbChirp := range dbChirps {
-		mappedChirps[i] = MapDatabaseChirp(dbChirp)
+	chirps := []Chirp{}
+	for _, dbChirp := range dbChirps {
+		chirps = append(chirps, Chirp{
+			ID:        dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			UserID:    dbChirp.UserID,
+			Body:      dbChirp.Body,
+		})
 	}
-	return mappedChirps
+	return chirps
 }
 
 func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
+	author_id := r.URL.Query().Get("author_id")
+	var authorID uuid.UUID
+	var err error
+	if author_id != "" {
+		authorID, err = uuid.Parse(author_id)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "failed Parse id string to uuid", nil)
+			return
+		}
+	}
+
+	sort := r.URL.Query().Get("sort")
+
+	// asc with author GetChirpsByAuthor
+	if (sort == "asc" || sort == "") && author_id != "" {
+		chirps, err := cfg.db.GetChirpsByAuthor(r.Context(), authorID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Get Chirps sorted asc by created at Failed", nil)
+			return
+		}
+		respondWithJSON(w, http.StatusOK, MapDatabaseChirps(chirps))
+		return
+	}
+	// desc no author GetChirpsDesc
+	if sort == "desc" && author_id != "" {
+		chirps, err := cfg.db.GetChirpsByAuthorDesc(r.Context(), authorID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Get Chirps sorted desc by created at Failed", nil)
+			return
+		}
+		respondWithJSON(w, http.StatusOK, MapDatabaseChirps(chirps))
+		return
+	}
+	// desc with author GetChirpsByAuthorDesc
+	if sort == "desc" && author_id == "" {
+		chirps, err := cfg.db.GetChirpsDesc(r.Context())
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Get Chirps sorted desc by created at Failed", nil)
+			return
+		}
+		respondWithJSON(w, http.StatusOK, MapDatabaseChirps(chirps))
+		return
+	}
+
+	// if no Paramaeters are passed or sort is asc
 	chirps, err := cfg.db.GetChirps(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Get Chirps Failed", nil)
 		return
 	}
-	chirpsMapped := MapDatabaseChirps(chirps)
-	respondWithJSON(w, http.StatusOK, chirpsMapped)
+	respondWithJSON(w, http.StatusOK, MapDatabaseChirps(chirps))
 }
 
 func (cfg *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
